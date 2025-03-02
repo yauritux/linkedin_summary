@@ -1,31 +1,44 @@
-from taipy import Gui
+import streamlit as st
 from profile_stalker import summarize_linkedin
 
-value="Yauri Attamimi"
-summary=""
-facts=None
 
-page="""
-### Linkedin Profile Stalker
-<br/>
-<|{value}|input|label="Profile Name"|>
-<|button|label=Get Summary|on_action=get_summary_action|>
-<br/>
-**Summary:**
-<br/>
-...
-<|{summary}|>
-<br/>
-**Interesting Facts:**
-<br/>
-...
-<|{facts}|>
-"""
+st.title("Linkedin Profile Stalker")
 
-def get_summary_action(state):    
-    profile_summary, _ = summarize_linkedin(state.value)
-    if hasattr(profile_summary, "summary") and hasattr(profile_summary, "facts"):
-        state.summary = profile_summary.summary
-        state.facts = profile_summary.facts
+if "summary" not in st.session_state:
+    st.session_state.summary = ""
 
-Gui(page=page).run(dark_mode=True)
+if "facts" not in st.session_state:
+    st.session_state.facts = []
+
+form_values = {
+    "name": "",
+}
+
+
+def summarize_linkedin_wrapper(name: str):
+    print(f"Checking {name} linkedin profile...")
+    response = summarize_linkedin(name)
+    st.session_state.summary = (
+        response.summary if hasattr(response, "summary") else ""
+    )
+    st.session_state.facts = (response.facts if hasattr(response, "facts") else [])
+    st.rerun(scope="app")
+
+
+with st.form(key="linkedin_form"):
+    form_values["name"] = st.text_input("Enter a name")
+    submitted = st.form_submit_button("Check Profile")
+    if submitted:
+        if not all(form_values.values()):
+            st.warning("Please enter a name!")
+        else:
+            summarize_linkedin_wrapper(form_values["name"])
+
+if st.session_state.summary != "":
+    print("found profile, writing summary...")
+    st.subheader("Summary")
+    st.write(st.session_state.summary)
+    st.session_state.summary = ""
+    st.subheader("Interesting Facts:")
+    for fact in st.session_state.facts:
+        st.write(fact)
